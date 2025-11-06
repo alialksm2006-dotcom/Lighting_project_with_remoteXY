@@ -1,7 +1,7 @@
 // fix code 
 
 #define REMOTEXY_MODE__WIFI
-
+#include "secret.h"
 #include "clsLight.h"
 #include <WiFi.h>
 #include <Bounce2.h>
@@ -9,11 +9,7 @@
 #include <TelnetStream.h>
 #include <UniversalTelegramBot.h>
 #include <WiFiClientSecure.h>
-// RemoteXY connection settings 
-#define REMOTEXY_WIFI_SSID " "
-#define REMOTEXY_WIFI_PASSWORD " "
-// #define REMOTEXY_WIFI_SSID " "
-// #define REMOTEXY_WIFI_PASSWORD " "
+
 #define REMOTEXY_SERVER_PORT 6377
 
 
@@ -71,24 +67,37 @@ clsLight Light_3 (LedPin_03,Switch3,&RemoteXY.pushSwitch_03);
 clsLight Light_4 (LedPin_04,Switch4,&RemoteXY.pushSwitch_04);
 
 
-// const char* ssid_AP = "ESP";
-// const char* password_AP="12345678";
-
 WiFiClientSecure client ;
+uint8_t Last_Elec_State = 0;
+
+void onWiFiEvent(WiFiEvent_t event)
+{
+  switch(event) 
+  {
+    case SYSTEM_EVENT_STA_GOT_IP:
+    ArduinoOTA.begin();
+     TelnetStream.begin();
+      break;
+    default:
+      break;
+  }
+}
 void setup() 
 {
-  
+  WiFi.onEvent(onWiFiEvent);
   Serial.begin(115200);
-  RemoteXY_Init (); 
+  RemoteXY_Init ();
   pinMode(Buzzer,OUTPUT);
-  
-  ArduinoOTA.begin();
-  TelnetStream.begin();
+  if(WiFi.status()==WL_CONNECTED )
+  {ArduinoOTA.begin();
+    TelnetStream.begin();
+  }
   // WiFi.softAP(ssid_AP,password_AP);
   // delay(10000);
   // TelnetStream.println("IP AP is :");
   // TelnetStream.println(WiFi.softAPIP());
   pinMode(Indicate_Pin,INPUT_PULLUP);
+  Last_Elec_State = !digitalRead(Indicate_Pin);
   client.setInsecure();
 }
 
@@ -98,15 +107,14 @@ void PrintTemp()
 {
   
   float temperature = temperatureRead(); 
-  Serial.print("ESP32 Internal Temperature: ");
-  Serial.print(temperature);
-  Serial.println(" °C");
+  TelnetStream.print("ESP32 Internal Temperature: ");
+  TelnetStream.print(temperature);
+  TelnetStream.println(" °C");
 }
-uint8_t Last_Elec_State = RemoteXY.led_01;
 
 
-const char* botToken = " ";
-String chatID = " ";
+const char* botToken = BOT_TOKEN;
+String chatID = CHAT_ID;
 UniversalTelegramBot bot (botToken,client);
 void Send_Elec_Message (uint8_t CurrentState , uint8_t &LastState)
 {
@@ -144,7 +152,8 @@ if(temperatureRead()>63)
 digitalWrite(Buzzer,HIGH);
 else digitalWrite(Buzzer,LOW);
 
-
+// PrintTemp();
+delay(20);
 
 
 }
